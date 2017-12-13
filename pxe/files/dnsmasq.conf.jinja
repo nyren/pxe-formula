@@ -1,0 +1,83 @@
+{%- set pxe = pillar.get('pxe', {}) -%}
+#
+# This file is managed by the Salt formula "pxe".
+#
+# Modify the salt pillar "pxe" to change the content of this file.
+#
+#
+# Configuration file for dnsmasq used as PXE server.
+#
+
+# Listen to this address
+listen-address={{ pxe.get('listen_address', '127.0.0.1') }}
+
+#####
+# DNS
+#
+
+# Do not use /etc/hosts
+no-hosts
+
+{% if 'domain_name_servers' in pxe -%}
+# Upstream name servers
+no-resolv
+{%- for ip in pxe['domain_name_servers'] %}
+server={{ ip }}
+{%- endfor %}
+{%- endif %}
+
+#####
+# DHCP
+#
+
+# DHCP options for all subnets
+{%- if 'domain_name' in pxe %}
+dhcp-option=option:domain-name,"{{ pxe['domain_name'] }}"
+{%- endif %}
+{% if 'domain_name_servers' in pxe -%}
+dhcp-option=option:dns-server,{{ ','.join(pxe['domain_name_servers']) }}
+{%- endif %}
+
+# PXE boot file
+dhcp-boot=/pxelinux.0  {# FIXME: allow different PXE binaries #}
+
+{% for name, data in pxe.get('subnets', {})|dictsort %}
+# DHCP subnet: {{ name }}
+{%- set net = salt['network.convert_cidr'](data['cidr']) %}
+dhcp-range=set:subnet_{{ name }},{{ net['network'] }},static,{{ net['netmask'] }}
+{%-   if 'gateway' in data %}
+dhcp-option=tag:subnet_{{ name }},option:router,{{ data['gateway'] }}
+{%-   endif %}
+{%-   if 'domain_name' in data %}
+dhcp-option=tag:subnet_{{ name }},option:domain-name,"{{ data['domain_name'] }}"
+{%-   endif %}
+{% endfor -%}
+
+{% for name, data in pxe.get('hosts', {})|dictsort %}
+# DHCP host: {{ name }}
+{%-   set ip_address = data.get('ip') %}
+{%-   if not ip_address %}
+{%-     set ip_address_list = salt['dnsutil.A'](name) %}
+{%-     if ip_address_list %}
+{%-       set ip_address = ip_address_list[0] %}
+{%-     endif %}
+{%-   endif %}
+{%-   if ip_address %}
+host-record={{ name }},{{ ip_address }}
+dhcp-host={{ data['hw'] }},set:{{ name }},{{ ip_address }},{{ name }}
+dhcp-option=tag:{{ name }},12,"{{ name }}"
+{%-   else %}
+# WARNING: could not resolve host "{{ name }}"
+{%-   endif %}
+{% endfor %}
+
+#####
+# TFTP
+#
+
+# Enable TFTP server
+enable-tftp
+tftp-secure
+
+# TFTP root directory
+tftp-root={{ pxe.get('tftp_root', '/srv/pxe') }}

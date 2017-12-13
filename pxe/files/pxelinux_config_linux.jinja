@@ -1,0 +1,9 @@
+{%- set pxe = pillar.get('pxe', {}) -%}
+DEFAULT {{ boot_name }}
+PROMPT 0
+TIMEOUT 10
+LABEL {{ boot_name }}
+  LINUX /{{ pxe.get('images_dir', 'images') }}/{{ boot_name }}/vmlinuz
+  INITRD /{{ pxe.get('images_dir', 'images') }}/{{ boot_name }}/initrd.img
+  APPEND {{ ' '.join(boot_options) }}
+  IPAPPEND 2
