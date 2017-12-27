@@ -30,3 +30,4 @@ pxe:
     dev02.example.com:
       hw: f3:db:67:d7:d7:b4
       os: centos-7
+      enable: False

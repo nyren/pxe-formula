@@ -1,15 +1,16 @@
-{%- set pxe = pillar.get('pxe', {}) -%}
 #
 # This file is managed by the Salt formula "pxe".
 #
-# Modify the salt pillar "pxe" to change the content of this file.
+# Modify the salt pillar key "pxe" to change the content of this file.
 #
 #
-# Configuration file for dnsmasq used as PXE server.
+# Configuration file for dnsmasq used as a DHCP/PXE server.
 #
 
+{% if listen_address -%}
 # Listen to this address
-listen-address={{ pxe.get('listen_address', '127.0.0.1') }}
+listen-address={{ listen_address }}
+{%- endif %}
 
 #####
 # DNS
@@ -18,30 +19,30 @@ listen-address={{ pxe.get('listen_address', '127.0.0.1') }}
 # Do not use /etc/hosts
 no-hosts
 
-{% if 'domain_name_servers' in pxe -%}
+{% if domain_name_servers -%}
 # Upstream name servers
 no-resolv
-{%- for ip in pxe['domain_name_servers'] %}
+{%- for ip in domain_name_servers %}
 server={{ ip }}
 {%- endfor %}
 {%- endif %}
 
-#####
+######
 # DHCP
 #
 
 # DHCP options for all subnets
-{%- if 'domain_name' in pxe %}
-dhcp-option=option:domain-name,"{{ pxe['domain_name'] }}"
+{%- if domain_name %}
+dhcp-option=option:domain-name,"{{ domain_name }}"
 {%- endif %}
-{% if 'domain_name_servers' in pxe -%}
-dhcp-option=option:dns-server,{{ ','.join(pxe['domain_name_servers']) }}
+{% if domain_name_servers -%}
+dhcp-option=option:dns-server,{{ ','.join(domain_name_servers) }}
 {%- endif %}
 
 # PXE boot file
-dhcp-boot=/pxelinux.0  {# FIXME: allow different PXE binaries #}
+dhcp-boot={{ tftp_boot_path }}
 
-{% for name, data in pxe.get('subnets', {})|dictsort %}
+{% for name, data in subnets|dictsort %}
 # DHCP subnet: {{ name }}
 {%- set net = salt['network.convert_cidr'](data['cidr']) %}
 dhcp-range=set:subnet_{{ name }},{{ net['network'] }},static,{{ net['netmask'] }}
@@ -53,7 +54,7 @@ dhcp-option=tag:subnet_{{ name }},option:domain-name,"{{ data['domain_name'] }}"
 {%-   endif %}
 {% endfor -%}
 
-{% for name, data in pxe.get('hosts', {})|dictsort %}
+{% for name, data in hosts|dictsort %}
 # DHCP host: {{ name }}
 {%-   set ip_address = data.get('ip') %}
 {%-   if not ip_address %}
@@ -71,7 +72,7 @@ dhcp-option=tag:{{ name }},12,"{{ name }}"
 {%-   endif %}
 {% endfor %}
 
-#####
+######
 # TFTP
 #
 
@@ -80,4 +81,4 @@ enable-tftp
 tftp-secure
 
 # TFTP root directory
-tftp-root={{ pxe.get('tftp_root', '/srv/pxe') }}
+tftp-root={{ tftp_root_path }}
