@@ -1,0 +1,32 @@
+pxe:
+  listen_address: {{ __grains__['fqdn_ip4'][0] }}
+  domain_name: 'example.com'
+  domain_name_servers:
+    - '8.8.8.8'
+    - '9.9.9.9'
+  default_os: centos-7
+  os:
+    'centos-7':
+      kernel: linux
+      files:
+        vmlinuz:
+	  source: 'http://mirror.centos.org/centos/7/os/x86_64/images/pxeboot/vmlinuz'
+	  hash: 8ede7f8d3c8f5e72f1a84713ad59b7b39211ea1af8887389cb50a189df937c6f
+        initrd.img:
+	  source: 'http://mirror.centos.org/centos/7/os/x86_64/images/pxeboot/initrd.img'
+	  hash: 5c71c0494620325c1ee919b44ac4ed4518fb43443bbf0474ff75951ea140c89c
+      options:
+        - 'ks=http://www.example.com/kickstart/centos.ks'
+        - 'ksdevice=bootif'
+        - 'kssendmac'
+        - 'text'
+  subnets:
+    test-net-1:
+      cidr: 172.17.17.0/24
+      gateway: 172.17.17.1
+  hosts:
+    dev01.example.com:
+      hw: dc:12:df:ea:ab:5e
+    dev02.example.com:
+      hw: f3:db:67:d7:d7:b4
+      os: centos-7
